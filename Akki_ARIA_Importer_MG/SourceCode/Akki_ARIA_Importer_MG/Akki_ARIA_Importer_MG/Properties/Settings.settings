@@ -1,0 +1,27 @@
+﻿<?xml version='1.0' encoding='utf-8'?>
+<SettingsFile xmlns="http://schemas.microsoft.com/VisualStudio/2004/01/settings" CurrentProfile="(Default)" GeneratedClassNamespace="Akki_ARIA_Importer_MG.Properties" GeneratedClassName="Settings">
+  <Profiles />
+  <Settings>
+    <Setting Name="Input" Type="System.String" Scope="User">
+      <Value Profile="(Default)">C:\Users\maxgr\Desktop\_test</Value>
+    </Setting>
+    <Setting Name="Output" Type="System.String" Scope="User">
+      <Value Profile="(Default)">C:\Users\maxgr\Desktop\_anon</Value>
+    </Setting>
+    <Setting Name="DaemonTitle" Type="System.String" Scope="User">
+      <Value Profile="(Default)">PHYSX_DICOM</Value>
+    </Setting>
+    <Setting Name="DaemonIP" Type="System.String" Scope="User">
+      <Value Profile="(Default)">10.22.86.64</Value>
+    </Setting>
+    <Setting Name="DaemonPort" Type="System.String" Scope="User">
+      <Value Profile="(Default)">51402</Value>
+    </Setting>
+    <Setting Name="AEtitle" Type="System.String" Scope="User">
+      <Value Profile="(Default)">DICOMEC1 </Value>
+    </Setting>
+    <Setting Name="AEport" Type="System.String" Scope="User">
+      <Value Profile="(Default)">9999</Value>
+    </Setting>
+  </Settings>
+</SettingsFile>
