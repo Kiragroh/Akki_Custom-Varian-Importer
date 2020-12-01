@@ -1,6 +1,8 @@
 # Akki_Custom-Varian-Importer
 Import Dicom files from many patients at once without even opening Eclipse.
 
+![Test Image 6](https://github.com/Kiragroh/Akki_Custom-Varian-Importer/blob/main/Akki_ARIA_Importer_MG/GUI-screenshot.PNG)
+
 I build this little tool named Akki because I had to import many plans of many patients for a specific research project. Eclipse (TreatmentPlanningSystem from Varian) let you only import for one patient at a time.  
 
 For development I utilized the VarianAPI-Book (https://github.com/VarianAPIs/VarianAPIs.github.io/blob/master/VarianApiBook.pdf), and the C#-package EvilDicom from Rex Cardan (https://github.com/rexcardan/Evil-DICOM). Both can easily be recommended.  
@@ -9,7 +11,7 @@ I think I build a tool that any Eclipse-User easily could make use of. You only 
 
 My program can process all Dicom files in a folder (with or without subdirectories). All none- or damaged- Dicom-files will be skipped.  
 
-You can start the program immediately by using the EXE in the main folder. The source code for further development is also uploaded (subfolder: 'Akki_ARIA_Importer_MG') but can be deleted after downloading the repository if you are only interested in using the EXE. All other files should remain for the program to work.  
+You can start the program immediately by using the EXE in the main folder. The source code for further development is also uploaded (subfolder: 'Source Code') but can be deleted after downloading the repository if you are only interested in using the EXE. All other files should remain for the program to work.  
 
 Requierements:  
 1.) Windows operating system  
