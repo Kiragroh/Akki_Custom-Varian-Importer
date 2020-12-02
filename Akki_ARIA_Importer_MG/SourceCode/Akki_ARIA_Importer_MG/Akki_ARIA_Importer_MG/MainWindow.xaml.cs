@@ -81,7 +81,7 @@ namespace Akki_ARIA_Importer_MG
             //ShowLogMsg("Output path: " + outputFolderPath);
 
         }
-        private async void runButton_Click(object sender, RoutedEventArgs e)
+        private void runButton_Click(object sender, RoutedEventArgs e)
         {
             
             // Store the details of the daemon (Ae Title , IP , port )
@@ -128,8 +128,7 @@ namespace Akki_ARIA_Importer_MG
                     var dcm = EvilDICOM.Core.DICOMObject.Read(file);
                     var response = storer.SendCStore(dcm, ref msgId);
                     // Write results to console
-                    await Task.Run(() => ShowLogMsg($" DICOM C-Store of {Path.GetFileName(file)} from { local.AeTitle } => " +
-                    $"{ daemon.AeTitle } {(EvilDICOM.Network.Enums.Status)response.Status }"));
+                    //await Task.Run(() => ShowLogMsg($" DICOM C-Store of {Path.GetFileName(file)} from { local.AeTitle } => { daemon.AeTitle } {(EvilDICOM.Network.Enums.Status)response.Status }"));
 
                     progressBar.Value = count * 100 / np;
                     ProgressTextBlock.Text = "Import in progress....";
