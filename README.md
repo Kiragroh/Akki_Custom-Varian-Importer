@@ -23,3 +23,9 @@ Disclaimer: I do not work for Varian and this program should be used carefully. 
 Asked questions:  
 1.) Why no Export-Function?  
 -> can be easily added. Export-request will be handled with the same DICOM-Daemon but Export is more complicated in the way that you have to give specific information to the Daemon. What modality (CT, RS, RD, RP, etc) from which patient? All DICOM-data or specific stuff? You get this information easily in conjunction with the Eclipse Scripting API. I already had a DataMining-Tool which I could equip with the Export-Function what solved the 'complication' immediately (last example: https://github.com/Kiragroh/ESAPI_Showcase_ComplexScripts). Import is easy because you present the Daemon with Dicom-Files and it handles the storage and Error-detection (you cannot import DICOMs with a script that cannot be also imported with Eclipse).
+
+Note:
+- script is optimized to work with Eclipse 15.1
+- absolute ESAPI-beginner should first look at my GettingStartedMaterial (collection of many helpful stuff from me or others and even includes a PDF version of some ESAPI-OnlineHelps)
+https://drive.google.com/drive/folders/1-aYUOIfyvAUKtBg9TgEETiz4SYPonDOO
+
