@@ -20,7 +20,9 @@ Requierements:
 
 Disclaimer: I do not work for Varian and this program should be used carefully. It is advised to try it on a non clinical workstation.
 
-Asked questions:  
+Asked questions: 
+0.) Limitations?
+-> Sadly, every DICOM file that would produce a warning in the native Eclipse-GUI-Importer will be skipped. If someone knows a workaround, please let me know.
 1.) Why no Export-Function?  
 -> can be easily added. Export-request will be handled with the same DICOM-Daemon but Export is more complicated in the way that you have to give specific information to the Daemon. What modality (CT, RS, RD, RP, etc) from which patient? All DICOM-data or specific stuff? You get this information easily in conjunction with the Eclipse Scripting API. I already had a DataMining-Tool which I could equip with the Export-Function what solved the 'complication' immediately (last example: https://github.com/Kiragroh/ESAPI_Showcase_ComplexScripts). Import is easy because you present the Daemon with Dicom-Files and it handles the storage and Error-detection (you cannot import DICOMs with a script that cannot be also imported with Eclipse).
 
