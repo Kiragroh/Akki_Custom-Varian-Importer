@@ -1,0 +1,5 @@
+EvilDICOM.2.0.5.5
+fo-dicom.4.0.7
+fo-dicom.Desktop.4.0.7
+Ookii.Dialogs.Wpf.3.0.0
+System.ValueTuple.4.5.0
