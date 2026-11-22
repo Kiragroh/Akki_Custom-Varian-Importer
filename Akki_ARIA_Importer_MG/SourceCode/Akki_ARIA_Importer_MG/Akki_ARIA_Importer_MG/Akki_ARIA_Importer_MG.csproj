@@ -8,7 +8,7 @@
     <OutputType>WinExe</OutputType>
     <RootNamespace>Akki_ARIA_Importer_MG</RootNamespace>
     <AssemblyName>Akki_ARIA_Importer_MG</AssemblyName>
-    <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
+    <TargetFrameworkVersion>v4.8</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <ProjectTypeGuids>{60dc8134-eba5-43b8-bcc9-bb4bc16c2548};{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}</ProjectTypeGuids>
     <WarningLevel>4</WarningLevel>
@@ -81,9 +81,6 @@
     <Reference Include="Dicom.Core, Version=4.0.7.0, Culture=neutral, PublicKeyToken=3a13f649e28eb09a, processorArchitecture=MSIL">
       <HintPath>..\packages\fo-dicom.Desktop.4.0.7\lib\net45\Dicom.Core.dll</HintPath>
     </Reference>
-    <Reference Include="EvilDICOM, Version=2.0.5.5, Culture=neutral, processorArchitecture=MSIL">
-      <HintPath>..\packages\EvilDICOM.2.0.5.5\lib\net45\EvilDICOM.dll</HintPath>
-    </Reference>
     <Reference Include="Ookii.Dialogs.Wpf, Version=3.0.0.0, Culture=neutral, PublicKeyToken=66aa232afad40158, processorArchitecture=MSIL">
       <HintPath>..\packages\Ookii.Dialogs.Wpf.3.0.0\lib\net45\Ookii.Dialogs.Wpf.dll</HintPath>
     </Reference>
@@ -122,6 +119,7 @@
       <DependentUpon>App.xaml</DependentUpon>
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="StoreSummary.cs" />
     <Compile Include="FlexibleMessageBox.cs" />
     <Compile Include="MainWindow.xaml.cs">
       <DependentUpon>MainWindow.xaml</DependentUpon>
@@ -156,9 +154,9 @@
     <None Include="App.config" />
   </ItemGroup>
   <ItemGroup>
-    <BootstrapperPackage Include=".NETFramework,Version=v4.7.2">
+    <BootstrapperPackage Include=".NETFramework,Version=v4.8">
       <Visible>False</Visible>
-      <ProductName>Microsoft .NET Framework 4.7.2 %28x86 und x64%29</ProductName>
+      <ProductName>Microsoft .NET Framework 4.8 %28x86 und x64%29</ProductName>
       <Install>true</Install>
     </BootstrapperPackage>
     <BootstrapperPackage Include="Microsoft.Net.Framework.3.5.SP1">
