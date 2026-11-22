@@ -1,5 +1,6 @@
 using System;
 using System.ComponentModel;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
@@ -26,12 +27,14 @@ namespace Akki_ARIA_Importer_MG
             AEtitleTextBox.Text = settings.AEtitle;
         }
 
-        private static string ReadModality(string path)
+        private static FileInfo ReadHeader(string path)
         {
             try
             {
-                return DicomFile.Open(path, readOption: FileReadOption.ReadLargeOnDemand)
-                    ?.Dataset?.GetSingleValue<string>(DicomTag.Modality);
+                var dataset = DicomFile.Open(path, readOption: FileReadOption.ReadLargeOnDemand)?.Dataset;
+                if (dataset == null) return null;
+                return new FileInfo { Path = path, Modality = dataset.GetSingleValueOrDefault(DicomTag.Modality, ""),
+                    Patient = PatientKey(dataset) };
             }
             catch (DicomException) { return null; }
             catch (IOException) { return null; }
@@ -45,14 +48,74 @@ namespace Akki_ARIA_Importer_MG
             var scope = subDirCheckBox.IsChecked == true ? SearchOption.AllDirectories : SearchOption.TopDirectoryOnly;
             return await Task.Run(() => Directory.EnumerateFiles(folder, "*", scope)
                 .Where(f => !Path.GetFileName(f).Contains("_ignore"))
-                .Select(f => new FileInfo { Path = f, Modality = ReadModality(f) })
-                .Where(f => !string.IsNullOrWhiteSpace(f.Modality)).ToArray());
+                .Select(ReadHeader)
+                .Where(f => !string.IsNullOrWhiteSpace(f?.Modality)).ToArray());
         }
 
         private sealed class FileInfo
         {
             public string Path;
             public string Modality;
+            public Tuple<string, string> Patient;
+        }
+
+        private static Tuple<string, string> PatientKey(DicomDataset data)
+        {
+            return Tuple.Create(data.GetSingleValueOrDefault(DicomTag.PatientID, ""),
+                data.GetSingleValueOrDefault(DicomTag.IssuerOfPatientID, ""));
+        }
+
+        private enum Lookup { Confirmed, NoMatch, Uncertain }
+
+        private async Task<Lookup> LookupAsync(Tuple<string, string> key, int port)
+        {
+            // Never send an empty, wildcard, multi-value or non-ASCII matching key.
+            var id = key.Item1;
+            if (string.IsNullOrWhiteSpace(id) || id.Length > 64 || id.Contains("\"") ||
+                id.Any(c => c < ' ' || c > '~' || "*?\\".Contains(c)))
+                return Lookup.Uncertain;
+
+            var request = new DicomCFindRequest(DicomQueryRetrieveLevel.Patient);
+            request.Dataset.AddOrUpdate(DicomTag.PatientID, id);
+            // Request the issuer as a return key. Inspect all matches across issuers.
+            request.Dataset.AddOrUpdate(DicomTag.IssuerOfPatientID, "");
+            int count = 0;
+            bool exact = false, completed = false;
+            request.OnResponseReceived = (sent, response) =>
+            {
+                if (response.Status.State == DicomState.Pending)
+                {
+                    count++;
+                    exact = response.Dataset != null && key.Equals(PatientKey(response.Dataset));
+                }
+                else completed = response.Status.Code == 0;
+            };
+            try { await SendAsync(request, port); }
+            catch (Exception) { return Lookup.Uncertain; }
+            if (!completed) return Lookup.Uncertain;
+            if (count == 0) return Lookup.NoMatch;
+            return count == 1 && exact ? Lookup.Confirmed : Lookup.Uncertain;
+        }
+
+        private async void CheckPatients_Click(object sender, RoutedEventArgs e)
+        {
+            await RunAsync("Checking patient IDs…", async () =>
+            {
+                int port;
+                if (!ValidConnection(out port)) return;
+                var files = await ScanAsync();
+                var rows = new List<object>();
+                foreach (var group in files.GroupBy(f => f.Patient))
+                {
+                    var state = await LookupAsync(group.Key, port);
+                    rows.Add(new { InputID = group.Key.Item1, Issuer = group.Key.Item2, Files = group.Count(),
+                        Result = state == Lookup.Confirmed ? "Exact match" :
+                            state == Lookup.NoMatch ? "No visible match" : "Unconfirmed" });
+                }
+                patientRows.ItemsSource = rows;
+                patientTab.IsSelected = true;
+                Report(rows.Count + " patient ID / issuer groups checked. No files sent.");
+            });
         }
 
         private void Report(string text)
@@ -66,6 +129,8 @@ namespace Akki_ARIA_Importer_MG
         {
             if (!actions.IsEnabled) return;
             actions.IsEnabled = false;
+            patientRows.ItemsSource = null;
+            activityTab.IsSelected = true;
             progressBar.Value = 0;
             ProgressTextBlock.Text = status;
             try { await operation(); }
@@ -145,6 +210,8 @@ namespace Akki_ARIA_Importer_MG
                 if (files.Length == 0) { Report("No eligible DICOM files found."); return; }
                 if (!await EchoAsync(port)) { Report("Echo failed. No files sent."); return; }
                 var result = new StoreSummary();
+                var checkedIds = new Dictionary<Tuple<string, string>, Lookup>();
+                int skipped = 0;
                 for (int i = 0; i < files.Length; i++)
                 {
                     ProgressTextBlock.Text = "Sending file " + (i + 1) + " of " + files.Length;
@@ -152,6 +219,19 @@ namespace Akki_ARIA_Importer_MG
                     {
                         var path = files[i].Path;
                         var request = await Task.Run(() => new DicomCStoreRequest(path));
+                        if (existingOnly.IsChecked == true)
+                        {
+                            var key = PatientKey(request.File.Dataset);
+                            Lookup match;
+                            if (!checkedIds.TryGetValue(key, out match))
+                                checkedIds[key] = match = await LookupAsync(key, port);
+                            if (match != Lookup.Confirmed)
+                            {
+                                skipped++;
+                                progressBar.Value = 100.0 * (i + 1) / files.Length;
+                                continue;
+                            }
+                        }
                         int? status = null;
                         request.OnResponseReceived = (sent, response) => status = response.Status.Code;
                         await SendAsync(request, port);
@@ -168,7 +248,7 @@ namespace Akki_ARIA_Importer_MG
                     }
                     progressBar.Value = 100.0 * (i + 1) / files.Length;
                 }
-                Report(result.ToString());
+                Report(result + " Skipped by ID check: " + skipped + ".");
             });
         }
 

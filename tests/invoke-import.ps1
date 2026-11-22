@@ -1,4 +1,4 @@
-param([string]$Executable, [string]$Folder, [int]$Port)
+param([string]$Executable, [string]$Folder, [int]$Port, [switch]$CheckOnly, [switch]$ConfirmedOnly)
 $ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName PresentationFramework
 $assembly = [Reflection.Assembly]::LoadFrom($Executable)
@@ -22,6 +22,14 @@ function Invoke-Action([string]$name) {
         Start-Sleep -Milliseconds 10
     }
 }
+if ($CheckOnly) {
+    Invoke-Action 'checkPatients'
+    foreach ($row in $window.FindName('patientRows').ItemsSource) {
+        Write-Output ("{0}|{1}|{2}|{3}" -f $row.InputID,$row.Issuer,$row.Files,$row.Result)
+    }
+    return
+}
+$window.FindName('existingOnly').IsChecked = $ConfirmedOnly.IsPresent
 Invoke-Action 'previewButton'
 Invoke-Action 'runButton'
 $window.FindName('logTextBox').Text

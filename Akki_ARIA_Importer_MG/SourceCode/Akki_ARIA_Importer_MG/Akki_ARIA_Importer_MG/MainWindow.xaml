@@ -30,13 +30,27 @@
                 <StackPanel Grid.Column="3"><Label Target="{Binding ElementName=AEtitleTextBox}" Content="Calling AE"/><TextBox Name="AEtitleTextBox" MaxLength="16"/></StackPanel>
             </Grid></GroupBox>
             <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
+                <Button Name="checkPatients" Content="Check patient IDs" Click="CheckPatients_Click"/>
                 <Button Name="echoButton" Content="Test connection" Click="Echo_Click"/>
                 <Button Name="runButton" Content="Send DICOM files" Background="#175477" Foreground="White" Click="Import_Click"/>
             </StackPanel>
+            <CheckBox Name="existingOnly" Content="Send only IDs confirmed by the receiver" Margin="0,0,0,10"/>
         </StackPanel>
         <StackPanel DockPanel.Dock="Bottom" Margin="0,8,0,0"><ProgressBar Name="progressBar" Height="8" Maximum="100"/>
             <TextBlock Name="ProgressTextBlock" Margin="0,6,0,0" TextWrapping="Wrap" Text="Choose a source folder to begin."/></StackPanel>
-        <GroupBox Header="Activity"><TextBox Name="logTextBox" IsReadOnly="True" TextWrapping="Wrap"
-            FontFamily="Consolas" VerticalScrollBarVisibility="Auto" BorderThickness="0"/></GroupBox>
+        <TabControl><TabItem Name="activityTab" Header="Activity"><TextBox Name="logTextBox" IsReadOnly="True" TextWrapping="Wrap"
+            FontFamily="Consolas" VerticalScrollBarVisibility="Auto" BorderThickness="0"/></TabItem>
+            <TabItem Name="patientTab" Header="Patient ID check"><DockPanel>
+                <TextBlock DockPanel.Dock="Top" TextWrapping="Wrap" Margin="6"
+                    Text="No visible match: if the patient is new and creation is enabled, the incoming ID is the candidate. If creation is forbidden, expect rejection. The daemon controls the final ID."/>
+                <DataGrid Name="patientRows" IsReadOnly="True" AutoGenerateColumns="False" CanUserAddRows="False">
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="Incoming ID" Binding="{Binding InputID}" Width="*"/>
+                        <DataGridTextColumn Header="Issuer" Binding="{Binding Issuer}" Width="*"/>
+                        <DataGridTextColumn Header="Files" Binding="{Binding Files}" Width="Auto"/>
+                        <DataGridTextColumn Header="Receiver result" Binding="{Binding Result}" Width="*"/>
+                    </DataGrid.Columns>
+                </DataGrid>
+            </DockPanel></TabItem></TabControl>
     </DockPanel>
 </Window>
