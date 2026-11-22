@@ -1,42 +1,38 @@
 # AKKI · DICOM batch importer for ARIA
 
-AKKI is a standalone Windows application for sending a folder of DICOM files to a configured storage receiver without opening Eclipse for each patient. I originally wrote it for a research project using Eclipse 15.1. It uses fo-dicom to inspect files and send DICOM requests. Compatibility with other receivers or Eclipse versions requires local testing.
+Send DICOM files from a folder to a configured storage receiver on Windows. Preview the batch by modality, test the connection and check what the receiver reported for each transfer. AKKI runs independently of Eclipse and was originally written for a research project using Eclipse 15.1.
 
-## Build the current source
+[Download the Windows build](https://github.com/Kiragroh/Akki_Custom-Varian-Importer/releases/tag/v1.1.0) · [Historical receiver setup notes](Akki_ARIA_Importer_MG/Manual_Adding%20of%20requiered%20DicomDaemon.pdf)
 
-Use Windows, Visual Studio or Build Tools with the .NET desktop workload, and the .NET Framework 4.8 targeting pack. From a **Developer PowerShell** at the repository root:
+![AKKI source folder, receiver settings and activity window with synthetic example data](docs/interface.png)
+
+## Run a batch
+
+1. Extract the release ZIP on Windows with .NET Framework 4.8 installed. Keep its contents together and start `Akki_ARIA_Importer_MG.exe`. The older executable in the repository is a historical snapshot.
+2. Choose **Browse…**, select a dedicated folder and check **Include subdirectories**. **Preview files** counts eligible objects by modality without sending them. It excludes filenames containing the case-sensitive text `_ignore` and files without a readable, nonblank Modality. The preview shows counts only. AKKI transmits the original objects with their identifiers.
+3. Enter the **Receiver AE**, **Host or IP**, **Port** and **Calling AE** supplied by your DICOM administrator. Use **Test connection** to issue a C-ECHO. Settings are saved for the Windows user when the window closes. The distributed configuration contains examples.
+4. **Send DICOM files** rescans the selected folder and performs a C-ECHO before the first C-STORE. Progress advances per object. The summary counts success (`0000`), warning (`Bxxx`), failure and missing replies separately. After an interruption, check the receiver before retrying because it may already have accepted part of the batch.
+
+## Eclipse / ARIA 18
+
+AKKI uses DICOM C-ECHO and C-STORE through fo-dicom. It requires no ESAPI assembly, Eclipse plug-in registration or open patient. For an Eclipse 18 installation, configure the DICOM receiver for the calling AE and the storage classes and transfer syntaxes used by your files.
+
+A site connection check verified C-ECHO and negotiation of CT Image, RT Structure Set, RT Plan and RT Dose Storage. Synthetic C-STORE transfers were tested against a local receiver. To verify the full workflow on a new installation, send an approved test case to its test receiver and check the resulting objects and references in ARIA.
+
+**RT dependencies.** AKKI sends files in directory enumeration order. If the receiver requires CT → RTSTRUCT → RTPLAN → RTDOSE, use one folder per stage and verify each stage at the receiver.
+
+## Build and test
+
+Use Windows, Visual Studio or Build Tools with the .NET desktop workload, and the .NET Framework 4.8 targeting pack. In a Developer PowerShell at the repository root:
 
 ```powershell
 $sln = 'Akki_ARIA_Importer_MG/SourceCode/Akki_ARIA_Importer_MG/Akki_ARIA_Importer_MG.sln'
 msbuild $sln -restore -p:RestorePackagesConfig=true -p:Configuration=Release '-p:Platform=Any CPU'
 $exe = Join-Path (Split-Path $sln) 'Akki_ARIA_Importer_MG/bin/Release/Akki_ARIA_Importer_MG.exe'
-& $exe
-```
-
-Keep the generated executable, configuration, DLLs and icons together. The prebuilt executable elsewhere in the repository is historical. Build the source above for the current transfer reporting.
-
-## Try a batch
-
-1. Prepare a dedicated input folder with synthetic DICOM objects. Select **Set Input-Folder** and check whether **Include subdirectories** is appropriate. **Peak** previews the folder and can display patient names and IDs in the window.
-2. Enter the receiving daemon's AE title, IP and port, then the calling AE title expected by the receiver. The shipped example settings need to be replaced with those of your test environment.
-3. Use **Echo** to check connectivity. **Start Import -> Aria** sends eligible objects individually by C-STORE. AKKI skips filenames containing the case-sensitive text `_ignore` and files whose Modality tag it cannot read. It performs no anonymisation.
-4. Read the transfer summary. The interface waits while each transfer completes. Status `0000` counts as accepted, `Bxxx` as a warning, other returned statuses as failed and a missing reply as unconfirmed. Check the receiver for warnings, uncertain transfers and the objects actually imported in ARIA. A read or send exception stops the batch. Earlier transfers can already have reached the receiver, so inspect its records before retrying.
-
-**RT object order matters.** AKKI does not sort dependencies or promise directory enumeration order. If the receiver needs CT, RTSTRUCT, RTPLAN and RTDOSE in sequence, prepare separate folders and send one stage at a time, checking each at the receiver.
-
-## Verify locally
-
-The loopback test opens the compiled WPF window in memory, invokes its import button, and supplies synthetic files to a local test receiver. It covers an empty candidate list, filename filtering, recursive discovery and a mixed set of success, warning and failure replies. After the build, run in a Windows Python environment with the test dependencies:
-
-```powershell
 python -m pip install 'pydicom>=2.4,<3' 'pynetdicom>=2.1,<3'
 python tests/test_loopback.py $exe
 ```
 
-When you close the window, AKKI saves the folder and connection settings for the next session. If the saved input folder is unavailable, select a new one.
+The test invokes the compiled WPF preview and import controls. A loopback receiver returns success, warning and failure for synthetic objects. No site configuration is needed.
 
-## Background
-
-[Receiver setup notes (historical PDF)](Akki_ARIA_Importer_MG/Manual_Adding%20of%20requiered%20DicomDaemon.pdf) · [Original interface screenshot](Akki_ARIA_Importer_MG/GUI-screenshot.PNG) · [Varian API Book](https://github.com/VarianAPIs/VarianAPIs.github.io/blob/master/VarianApiBook.pdf) · [EvilDICOM](https://github.com/rexcardan/Evil-DICOM)
-
-This independent research example is provided without warranty or vendor support. Validate the entire workflow in an isolated non-clinical environment before considering any other use.
+This independent research tool is provided without warranty or vendor support. Validate the receiving workflow in an isolated test environment before clinical use.

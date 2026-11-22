@@ -59,6 +59,7 @@ def main(executable):
             for i in statuses:
                 write_ct(root / "sub" / str(i), i)
             log = run()
+            assert "CT: 3" in log and "Synthetic^Test" not in log and "SYNTHETIC" not in log, log
             assert sorted(received) == sorted(statuses), (received, log)
             assert "1 accepted, 1 warnings, 1 failed, 0 unconfirmed" in log, log
     finally:
