@@ -82,7 +82,6 @@
             <Label Content="Trusted AE:" Grid.Column="0" Grid.Row="3" Margin="15,5,5,5" HorizontalAlignment="Left" />
             <Label Content="Title:" Grid.Column="0" Grid.Row="3" Margin="0,5,5,5" HorizontalAlignment="Right" />
             <TextBox x:Name="AEtitleTextBox" Text="{Binding Source={x:Static p:Settings.Default}, Path=AEtitle, Mode=OneWay}" TextWrapping="Wrap"  Width="139"  Grid.Column="1" Grid.Row="3" Margin="5,5,0,5" HorizontalAlignment="Left" VerticalContentAlignment="Center"/>
-            <TextBox x:Name="AEportTextBox" Text="{Binding Source={x:Static p:Settings.Default}, Path=AEport, Mode=OneWay}" TextWrapping="Wrap"  Width="110" Grid.Column="1" Grid.Row="3" Margin="5,5,7,5" HorizontalAlignment="Right" VerticalContentAlignment="Center"/>
 
         </Grid>
         <Expander Header="Settings" IsExpanded="True" Margin="5">

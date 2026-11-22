@@ -10,10 +10,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
-using EvilDICOM;
-using EvilDICOM.Core.Helpers;
-using EvilDICOM.Core.Element;
-using EvilDICOM.Network;
+using Dicom.Network;
 using System.Runtime.InteropServices;
 using Akki_ARIA_Importer_MG.Properties;
 using JR.Utils.GUI.Forms;
@@ -59,7 +56,7 @@ namespace Akki_ARIA_Importer_MG
             }
             else
             {
-                inputFolderPath = Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
+                inputFolderPath = string.Empty;
             }
             if (Directory.Exists(Settings.Default.Output))
             {
@@ -83,86 +80,102 @@ namespace Akki_ARIA_Importer_MG
         }
         private void runButton_Click(object sender, RoutedEventArgs e)
         {
-            
-            // Store the details of the daemon (Ae Title , IP , port )
-            var daemon = new Entity(DaemonTitleTextBox.Text, DaemonIpTextBox.Text, int.Parse(DaemonPortTextBox.Text));
-            // Store the details of the client (Ae Title , port ) -> IP address is determined by CreateLocal() method
-            var local = Entity.CreateLocal(AEtitleTextBox.Text, int.Parse(AEportTextBox.Text));
-            // Set up a client ( DICOM SCU = Service Class User )
-            var client = new DICOMSCU(local);
-            var storer = client.GetCStorer(daemon);
-            ushort msgId = 1;
-
-            var canPing = client.Ping(daemon);
-
-            if (canPing)
+            runButton.IsEnabled = false;
+            progressBar.Value = 0;
+            try
             {
-                echoButton.Background = System.Windows.Media.Brushes.LawnGreen;
-                progressBar.Value = 0;
-                runButton.IsEnabled = false;
-
-                if (!Directory.Exists(outputFolderPath))
-                    Directory.CreateDirectory(outputFolderPath);
-
-                runButton.IsEnabled = false;
-
-                string dir = inputFolderPath;
-                var toAnonymize = Enumerable.Empty<string>();
-                if (subDirCheckBox.IsChecked == false)
+                int port;
+                if (!TryGetReceiverPort(out port)) return;
+                if (!Directory.Exists(inputFolderPath))
                 {
-                    toAnonymize = Directory.GetFiles(dir).Where(f => DumpSingleDicomTag(f, "0008,0060") != "fail" & !Path.GetFileName(f).Contains("_ignore"));
+                    Report("Select an existing input folder.");
+                    return;
                 }
-                else
+                var files = FindCandidates(inputFolderPath);
+                if (files.Length == 0)
                 {
-                    toAnonymize = Directory.GetFiles(dir, "*", SearchOption.AllDirectories).Where(f => DumpSingleDicomTag(f, "0008,0060") != "fail" & !Path.GetFileName(f).Contains("_ignore"));
-                }
-                int np = toAnonymize.Count();
-                ShowLogMsg("\nNew import process has started.");
-                ShowLogMsg("Number of DICOM files for importing: " + np.ToString() + "\n");
-
-                int count = 1;
-                bool importSuccess = true;
-                foreach (var file in toAnonymize)
-                {
-                    // Reads DICOM object into memory
-                    var dcm = EvilDICOM.Core.DICOMObject.Read(file);
-                    var response = storer.SendCStore(dcm, ref msgId);
-                    // Write results to console
-                    //await Task.Run(() => ShowLogMsg($" DICOM C-Store of {Path.GetFileName(file)} from { local.AeTitle } => { daemon.AeTitle } {(EvilDICOM.Network.Enums.Status)response.Status }"));
-
-                    progressBar.Value = count * 100 / np;
-                    ProgressTextBlock.Text = "Import in progress....";
-
-                    count++;
-
+                    Report("No eligible DICOM files found.");
+                    return;
                 }
 
-                if (importSuccess == true)
+                if (!Echo(port))
                 {
-                    ShowLogMsg("\nImport completed successfully.");
-                    ShowLogMsg("");
-                    ProgressTextBlock.Text = "Import completed successfully";
-                    progressBar.Value = 100;
+                    Report("Echo failed. No files sent.");
+                    return;
                 }
-                else
+                var result = new StoreSummary();
+                for (int i = 0; i < files.Length; i++)
                 {
-                    ShowLogMsg("\nImport completed with Erros.");
-                    ShowLogMsg("");
-                    ProgressTextBlock.Text = "Import completed with Errors";
-                    progressBar.Value = 100;
+                    try
+                    {
+                        var request = new DicomCStoreRequest(files[i]);
+                        int? status = null;
+                        request.OnResponseReceived = (sent, response) => status = response.Status.Code;
+                        Send(request, port);
+                        result.Record(status);
+                        if (status != 0)
+                            ShowLogMsg("File " + (i + 1) + ": " +
+                                (status.HasValue ? "C-STORE 0x" + status.Value.ToString("X4") : "no response"));
+                    }
+                    catch (Exception ex)
+                    {
+                        Report("Stopped at file " + (i + 1) + " of " + files.Length +
+                            " (" + ex.GetType().Name + "). Check receiver before retrying. " + result);
+                        return;
+                    }
+                    progressBar.Value = 100.0 * (i + 1) / files.Length;
                 }
-
-
+                Report(result.ToString());
+            }
+            catch (Exception ex)
+            {
+                Report("Cannot complete import (" + ex.GetType().Name + ").");
+            }
+            finally
+            {
                 runButton.IsEnabled = true;
             }
-            else
-            {
-                echoButton.Background = System.Windows.Media.Brushes.PaleVioletRed;
-                ShowLogMsg("\nNo import is possible. Echo to Daemon failed.");
-                ProgressTextBlock.Text = "Echo failed. No Import was done.";
-            }
-            
-        }            
+        }
+
+        private string[] FindCandidates(string folder)
+        {
+            var scope = subDirCheckBox.IsChecked == false
+                ? SearchOption.TopDirectoryOnly : SearchOption.AllDirectories;
+            return Directory.EnumerateFiles(folder, "*", scope)
+                .Where(f => !Path.GetFileName(f).Contains("_ignore") &&
+                    DumpSingleDicomTag(f, "0008,0060") != "fail").ToArray();
+        }
+
+        private void Report(string message)
+        {
+            ShowLogMsg(message);
+            ProgressTextBlock.Text = message;
+        }
+
+        private bool TryGetReceiverPort(out int port)
+        {
+            if (int.TryParse(DaemonPortTextBox.Text, out port) && port >= 1 && port <= 65535)
+                return true;
+            Report("Enter a receiver port between 1 and 65535.");
+            return false;
+        }
+
+        private bool Echo(int port)
+        {
+            bool accepted = false;
+            var request = new DicomCEchoRequest();
+            request.OnResponseReceived = (sent, response) => accepted = response.Status.Code == 0;
+            Send(request, port);
+            return accepted;
+        }
+
+        private void Send(DicomRequest request, int port)
+        {
+            var client = new DicomClient();
+            client.AddRequest(request);
+            client.Send(DaemonIpTextBox.Text.Trim(), port, false,
+                AEtitleTextBox.Text.Trim(), DaemonTitleTextBox.Text.Trim());
+        }
 
         /// <summary>
         /// ShowLogMsg
@@ -187,7 +200,6 @@ namespace Akki_ARIA_Importer_MG
             Settings.Default.DaemonIP = DaemonIpTextBox.Text;
             Settings.Default.DaemonPort = DaemonPortTextBox.Text;
             Settings.Default.AEtitle= AEtitleTextBox.Text;
-            Settings.Default.AEport = AEportTextBox.Text;
             Settings.Default.Save();
             base.OnClosing(e);
         }
@@ -293,16 +305,8 @@ namespace Akki_ARIA_Importer_MG
             {
 
                 string dir = inputFolderPath;
-                var toAnonymize = Enumerable.Empty<string>();
-                if (subDirCheckBox.IsChecked == false)
-                {
-                    toAnonymize = Directory.GetFiles(dir).Where(f => DumpSingleDicomTag(f, "0008,0060") != "fail" & !Path.GetFileName(f).Contains("_ignore"));
-                }
-                else
-                {
-                    toAnonymize = Directory.GetFiles(dir, "*", SearchOption.AllDirectories).Where(f => DumpSingleDicomTag(f, "0008,0060") != "fail" & !Path.GetFileName(f).Contains("_ignore"));
-                }
-                int np = toAnonymize.Count();
+                var toAnonymize = FindCandidates(dir);
+                int np = toAnonymize.Length;
                 ShowLogMsg("\nNew Input-Peaking has started.");
                 ShowLogMsg("Number of DICOM files for peaking: " + np.ToString());
 
@@ -354,16 +358,8 @@ namespace Akki_ARIA_Importer_MG
             if (Directory.Exists(outputFolderPath))
             {
                 string dir = outputFolderPath;
-                var toAnonymize = Enumerable.Empty<string>();
-                if (subDirCheckBox.IsChecked == false)
-                {
-                    toAnonymize = Directory.GetFiles(dir).Where(f => DumpSingleDicomTag(f, "0008,0060") != "fail" & !Path.GetFileName(f).Contains("_ignore"));
-                }
-                else
-                {
-                    toAnonymize = Directory.GetFiles(dir, "*", SearchOption.AllDirectories).Where(f => DumpSingleDicomTag(f, "0008,0060") != "fail" & !Path.GetFileName(f).Contains("_ignore"));
-                }
-                int np = toAnonymize.Count();
+                var toAnonymize = FindCandidates(dir);
+                int np = toAnonymize.Length;
                 ShowLogMsg("\nNew Output-Peaking has started.");
                 ShowLogMsg("Number of DICOM files for peaking: " + np.ToString());
 
@@ -376,7 +372,6 @@ namespace Akki_ARIA_Importer_MG
                     {
                         try
                         {
-                            var dcm = EvilDICOM.Core.DICOMObject.Read(file);
                             await Task.Run(() => peakList.Add(DumpPeakDicomTags(file) + "_#"));
                             progressBar.Value = count * 100 / np;
                             ProgressTextBlock.Text = "Reading DICOM-Files....";
@@ -412,28 +407,18 @@ namespace Akki_ARIA_Importer_MG
 
         private void echoButton_Click(object sender, RoutedEventArgs e)
         {
-            // Store the details of the daemon (Ae Title , IP , port )
-            var daemon = new Entity(DaemonTitleTextBox.Text, DaemonIpTextBox.Text, int.Parse(DaemonPortTextBox.Text));
-            // Store the details of the client (Ae Title , port ) -> IP address is determined by CreateLocal() method
-            var local = Entity.CreateLocal(AEtitleTextBox.Text, int.Parse(AEportTextBox.Text));
-            // Set up a client ( DICOM SCU = Service Class User )
-            var client = new DICOMSCU(local);
-            var storer = client.GetCStorer(daemon);
-            //ushort msgId = 1;
-
-            var canPing = client.Ping(daemon);
-
-            if (canPing)
+            try
             {
-                echoButton.Background = System.Windows.Media.Brushes.LawnGreen;
-                ShowLogMsg("\nImport is possible. Echo to Daemon succeeded.");
-                ProgressTextBlock.Text = "Echo succeeded. Press Start to begin Import.";
+                int port;
+                if (!TryGetReceiverPort(out port)) return;
+                bool reached = Echo(port);
+                echoButton.Background = reached ? System.Windows.Media.Brushes.LawnGreen :
+                    System.Windows.Media.Brushes.PaleVioletRed;
+                Report(reached ? "Echo succeeded." : "Echo failed.");
             }
-            else
+            catch (Exception ex)
             {
-                echoButton.Background = System.Windows.Media.Brushes.PaleVioletRed;
-                ShowLogMsg("\nNo import is possible. Echo to Daemon failed.");
-                ProgressTextBlock.Text = "Echo failed. Import will also fail.";
+                Report("Echo failed (" + ex.GetType().Name + ").");
             }
         }
 

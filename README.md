@@ -1,40 +1,42 @@
-# Akki_Custom-Varian-Importer
-Import Dicom files from many patients at once without even opening Eclipse.
+# AKKI · DICOM batch importer for ARIA
 
-> **Independent project:** This is a personal technical example, not an
-> official publication, product, approval, or support service of any employer,
-> healthcare provider, university, or vendor. Shipped paths, AE titles, and
-> addresses are synthetic and non-routable. The software is provided without
-> warranty and requires local validation and governance.
+AKKI is a standalone Windows application for sending a folder of DICOM files to a configured storage receiver without opening Eclipse for each patient. I originally wrote it for a research project using Eclipse 15.1. It uses fo-dicom to inspect files and send DICOM requests. Compatibility with other receivers or Eclipse versions requires local testing.
 
-![Test Image 6](https://github.com/Kiragroh/Akki_Custom-Varian-Importer/blob/main/Akki_ARIA_Importer_MG/GUI-screenshot.PNG)
+## Build the current source
 
-I build this little tool named Akki because I had to import many plans of many patients for a specific research project. Eclipse (TreatmentPlanningSystem from Varian) let you only import for one patient at a time.  
+Use Windows, Visual Studio or Build Tools with the .NET desktop workload, and the .NET Framework 4.8 targeting pack. From a **Developer PowerShell** at the repository root:
 
-For development I utilized the VarianAPI-Book (https://github.com/VarianAPIs/VarianAPIs.github.io/blob/master/VarianApiBook.pdf), and the C#-package EvilDicom from Rex Cardan (https://github.com/rexcardan/Evil-DICOM). Both can easily be recommended.  
+```powershell
+$sln = 'Akki_ARIA_Importer_MG/SourceCode/Akki_ARIA_Importer_MG/Akki_ARIA_Importer_MG.sln'
+msbuild $sln -restore -p:RestorePackagesConfig=true -p:Configuration=Release '-p:Platform=Any CPU'
+$exe = Join-Path (Split-Path $sln) 'Akki_ARIA_Importer_MG/bin/Release/Akki_ARIA_Importer_MG.exe'
+& $exe
+```
 
-I think I build a tool that any Eclipse-User easily could make use of. You only need to create a extra Dicom-Daemon that will process the import requests. This can be done in under 5 minutes with the manual I also uploaded (extracted from the VarianAPI-Book).  
+Keep the generated executable, configuration, DLLs and icons together. The prebuilt executable elsewhere in the repository is historical. Build the source above for the current transfer reporting.
 
-My program can process all Dicom files in a folder (with or without subdirectories). All none- or damaged- Dicom-files will be skipped.  
+## Try a batch
 
-You can start the program immediately by using the EXE in the main folder. The source code for further development is also uploaded (subfolder: 'Source Code') but can be deleted after downloading the repository if you are only interested in using the EXE. All other files should remain for the program to work.  
+1. Prepare a dedicated input folder with synthetic DICOM objects. Select **Set Input-Folder** and check whether **Include subdirectories** is appropriate. **Peak** previews the folder and can display patient names and IDs in the window.
+2. Enter the receiving daemon's AE title, IP and port, then the calling AE title expected by the receiver. The shipped example settings need to be replaced with those of your test environment.
+3. Use **Echo** to check connectivity. **Start Import -> Aria** sends eligible objects individually by C-STORE. AKKI skips filenames containing the case-sensitive text `_ignore` and files whose Modality tag it cannot read. It performs no anonymisation.
+4. Read the transfer summary. The interface waits while each transfer completes. Status `0000` counts as accepted, `Bxxx` as a warning, other returned statuses as failed and a missing reply as unconfirmed. Check the receiver for warnings, uncertain transfers and the objects actually imported in ARIA. A read or send exception stops the batch. Earlier transfers can already have reached the receiver, so inspect its records before retrying.
 
-Requierements:  
-1.) Windows operating system  
-2.) rund the .exe in the downloaded and then extracted folder  
-3.) have 'Microsoft .NET Framework 4.5' installed. Usually, it is automatically installed on a windows machine. On an internet PC, you will be prompted to install. Otherwise download here: https://www.microsoft.com/de-de/download/details.aspx?id=30653)  
+**RT object order matters.** AKKI does not sort dependencies or promise directory enumeration order. If the receiver needs CT, RTSTRUCT, RTPLAN and RTDOSE in sequence, prepare separate folders and send one stage at a time, checking each at the receiver.
 
-Disclaimer: I do not work for Varian. This program is not a medical device and
-must first be configured and tested in an isolated non-clinical environment.
+## Verify locally
 
-Asked questions: 
-0.) Limitations?
--> In this simple version of the script the import of plans will not work. you have to order the files before import (CT -> RS -> RP -> RD). Otherwise the Daemon will not be able to import. But this is an easy exercise. You can use the filename or the modality for sorting.
-1.) Why no Export-Function?  
--> can be easily added. Export-request will be handled with the same DICOM-Daemon but Export is more complicated in the way that you have to give specific information to the Daemon. What modality (CT, RS, RD, RP, etc) from which patient? All DICOM-data or specific stuff? You get this information easily in conjunction with the Eclipse Scripting API. I already had a DataMining-Tool which I could equip with the Export-Function what solved the 'complication' immediately (last example: https://github.com/Kiragroh/ESAPI_Showcase_ComplexScripts). Import is easy because you present the Daemon with Dicom-Files and it handles the storage and Error-detection (you cannot import DICOMs with a script that cannot be also imported with Eclipse).
+The loopback test opens the compiled WPF window in memory, invokes its import button, and supplies synthetic files to a local test receiver. It covers an empty candidate list, filename filtering, recursive discovery and a mixed set of success, warning and failure replies. After the build, run in a Windows Python environment with the test dependencies:
 
-Note:
-- script is optimized to work with Eclipse 15.1
-- absolute ESAPI-beginner should first look at my GettingStartedMaterial (collection of many helpful stuff from me or others and even includes a PDF version of some ESAPI-OnlineHelps)
-https://drive.google.com/drive/folders/1-aYUOIfyvAUKtBg9TgEETiz4SYPonDOO
+```powershell
+python -m pip install 'pydicom>=2.4,<3' 'pynetdicom>=2.1,<3'
+python tests/test_loopback.py $exe
+```
 
+When you close the window, AKKI saves the folder and connection settings for the next session. If the saved input folder is unavailable, select a new one.
+
+## Background
+
+[Receiver setup notes (historical PDF)](Akki_ARIA_Importer_MG/Manual_Adding%20of%20requiered%20DicomDaemon.pdf) · [Original interface screenshot](Akki_ARIA_Importer_MG/GUI-screenshot.PNG) · [Varian API Book](https://github.com/VarianAPIs/VarianAPIs.github.io/blob/master/VarianApiBook.pdf) · [EvilDICOM](https://github.com/rexcardan/Evil-DICOM)
+
+This independent research example is provided without warranty or vendor support. Validate the entire workflow in an isolated non-clinical environment before considering any other use.
